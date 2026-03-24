@@ -14,12 +14,25 @@ export const BLOCK_COUNTS = {
   'Speed & Stamina': 6,
 };
 
-// Bar start Y as fraction of slide height
-// Ballston/Rosslyn = bottom bar, Mosaic = middle
+// Exact bar image placement per studio, measured from real templates (inches)
+// Ballston/Rosslyn: x=0.721 y=7.963 w=12.780 h=2.703
+// Mosaic:           x=0.002 y=3.829 w=14.220 h=3.008
+export const BAR_DIMS = {
+  'Ballston': { x: 0.721,  y: 7.963, w: 12.780, h: 2.703 },
+  'Rosslyn':  { x: 0.721,  y: 7.963, w: 12.780, h: 2.703 },
+  'Mosaic':   { x: 0.002,  y: 3.829, w: 14.220, h: 3.008 },
+};
+
+// Derived barY/barH for text overlay positioning (used in block slides)
 export const BAR_Y = {
-  'Ballston': 0.747,
-  'Rosslyn':  0.747,
-  'Mosaic':   0.359,
+  'Ballston': 7.963,
+  'Rosslyn':  7.963,
+  'Mosaic':   3.829,
+};
+export const BAR_H = {
+  'Ballston': 2.703,
+  'Rosslyn':  2.703,
+  'Mosaic':   3.008,
 };
 
 // All asset keys to attempt loading
@@ -31,8 +44,16 @@ export const ALL_ASSET_KEYS = [
   // Full-cell replacements
   'freestyle_3col', 'freestyle_4col', 'freestyle_6col',
   'shoeshine_3col', 'shoeshine_4col', 'shoeshine_6col',
-  // Intro slides per studio
-  'intro_ballston', 'intro_rosslyn', 'intro_mosaic',
+  // Block background images (bags and floor, all variants)
+  'bags_3col', 'bags_4col', 'bags_6col',
+  'floor_3col_timed', 'floor_3col_reps',
+  'floor_3col_timed_buyin', 'floor_3col_reps_buyin',
+  'floor_4col_timed', 'floor_4col_reps',
+  'floor_4col_timed_buyin', 'floor_4col_reps_buyin',
+  'floor_6col_timed', 'floor_6col_reps',
+  'floor_6col_timed_buyin', 'floor_6col_reps_buyin',
+  // Single intro bar (positioned per studio)
+  'intro_bar',
   // 6 Core Punches — 8 variants based on defense combos present
   'corepunches_none',
   'corepunches_duck',
@@ -43,7 +64,7 @@ export const ALL_ASSET_KEYS = [
   'corepunches_roll_dash',
   'corepunches_duck_roll_dash',
   // Other shared slides
-  'warmup', 'justbash', 'walkout',
+  'warmup_bar', 'justbash', 'walkout_bar',
 ];
 
 const INLINE_ICON_KEYS = ['duck', 'roll', 'dash'];

@@ -1,5 +1,5 @@
 import PptxGenJS from 'pptxgenjs';
-import { BLOCK_COUNTS, BAR_Y, ABBREV_MAP } from './state.js';
+import { BLOCK_COUNTS, BAR_DIMS, BAR_Y, BAR_H, ABBREV_MAP } from './state.js';
 
 // Slide dimensions match real templates: 14.222" x 10.667"
 const W = 14.222;
@@ -16,9 +16,11 @@ const C = {
 
 // ── HELPERS ───────────────────────────────────────────────
 
-function bgImage(slide, dataUrl) {
+// Place a bar image at exact studio-specific coordinates
+function barImage(slide, dataUrl, studio) {
   if (!dataUrl) return;
-  slide.addImage({ data: dataUrl, x: 0, y: 0, w: W, h: H });
+  const d = BAR_DIMS[studio] || BAR_DIMS['Ballston'];
+  slide.addImage({ data: dataUrl, x: d.x, y: d.y, w: d.w, h: d.h });
 }
 
 function colCount(dayType) {
@@ -69,8 +71,7 @@ function punchRuns(punchStr, assets, fontSize) {
 function addIntroSlide(pres, studio, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
-  const key = `intro_${studio.toLowerCase()}`;
-  bgImage(slide, assets[key]);
+  barImage(slide, assets['intro_bar'], studio);
 }
 
 // Parse all combos in a day to find unique defense types present
@@ -94,12 +95,10 @@ function detectDefense(dayData) {
   return defense;
 }
 
-function addCorePunchesSlide(pres, dayData, barY, barH, assets) {
+function addCorePunchesSlide(pres, dayData, studio, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
 
-  // Build image key from detected defense combos
-  // e.g. corepunches_none, corepunches_duck, corepunches_duck_roll_dash
   const defense = detectDefense(dayData);
   const parts = [];
   if (defense.duck) parts.push('duck');
@@ -109,26 +108,25 @@ function addCorePunchesSlide(pres, dayData, barY, barH, assets) {
     ? 'corepunches_' + parts.join('_')
     : 'corepunches_none';
 
-  // Fall back to corepunches_none if the specific combo image isn't loaded
-  bgImage(slide, assets[key] || assets['corepunches_none']);
+  barImage(slide, assets[key] || assets['corepunches_none'], studio);
 }
 
-function addWarmupSlide(pres, assets) {
+function addWarmupSlide(pres, studio, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
-  bgImage(slide, assets['warmup']);
+  barImage(slide, assets['warmup_bar'], studio);
 }
 
-function addWalkoutSlide(pres, assets) {
+function addWalkoutSlide(pres, studio, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
-  bgImage(slide, assets['walkout']);
+  barImage(slide, assets['walkout_bar'], studio);
 }
 
 function addJustBashSlide(pres, justBashText, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
-  bgImage(slide, assets['justbash']);
+  if (assets['justbash']) slide.addImage({ data: assets['justbash'], x: 0, y: 0, w: W, h: H });
 
   if (justBashText) {
     // Yellow text overlaid below the #JUSTBASH graphic
@@ -147,28 +145,33 @@ function addJustBashSlide(pres, justBashText, assets) {
   }
 }
 
+// Build the background image key for a block slide
+function blockBgKey(blockType, count, floorMode, buyInOn) {
+  const col = count <= 3 ? 3 : count <= 4 ? 4 : 6;
+  if (blockType === 'bags') return `bags_${col}col`;
+  const mode = floorMode === 'reps' ? 'reps' : 'timed';
+  const buyin = buyInOn ? '_buyin' : '';
+  return `floor_${col}col_${mode}${buyin}`;
+}
+
 // Renders one block slide (bags combos OR floor exercises)
-function addBlockSlide(pres, items, dayData, barY, barH, blockType, blockNum, assets) {
+function addBlockSlide(pres, items, dayData, barY, barH, blockType, blockNum, studio, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
 
   const count = items.length;
   const cols = Math.min(count, 3);
   const cw = W / cols;
+  const buyInOn = blockNum === 1 ? dayData.buyIn1 : dayData.buyIn2;
 
-  // Divider lines between columns
-  for (let c = 1; c < cols; c++) {
-    slide.addShape(pres.ShapeType.rect, {
-      x: c * cw, y: barY + H * 0.03, w: 0.025, h: barH * 0.94,
-      fill: { color: '333333' }, line: { color: '333333' },
-    });
-  }
+  // Place the background bar image
+  const bgKey = blockBgKey(blockType, count, dayData.floorMode, buyInOn);
+  barImage(slide, assets[bgKey], studio);
 
   if (blockType === 'bags') {
     addBagsCombos(slide, pres, items, dayData, barY, barH, cols, cw, assets);
   } else {
-    const buyInOn  = blockNum === 1 ? dayData.buyIn1  : dayData.buyIn2;
-    const buyInTxt = blockNum === 1 ? dayData.buyInText1  : dayData.buyInText2;
+    const buyInTxt = blockNum === 1 ? dayData.buyInText1 : dayData.buyInText2;
     addFloorExercises(slide, pres, items, dayData, barY, barH, cols, cw, buyInOn, buyInTxt);
   }
 }
@@ -408,21 +411,20 @@ export async function generateBagsDeck(dayData, dayName, studio, date, assets) {
   pres.defineLayout({ name: 'BASH', width: W, height: H });
   pres.layout = 'BASH';
 
-  const barYFrac = BAR_Y[studio];
-  const barY = H * barYFrac;
-  const barH = H - barY;
+  const barY = BAR_Y[studio];
+  const barH = BAR_H[studio];
 
   const count = BLOCK_COUNTS[dayData.type];
   const block1 = dayData.bagsBlock1.slice(0, count);
   const block2 = dayData.bagsBlock2.slice(0, count);
 
   addIntroSlide(pres, studio, assets);
-  addCorePunchesSlide(pres, dayData, barY, barH, assets);
-  addWarmupSlide(pres, assets);
-  addBlockSlide(pres, block1, dayData, barY, barH, 'bags', 1, assets);
-  addBlockSlide(pres, block2, dayData, barY, barH, 'bags', 2, assets);
+  addCorePunchesSlide(pres, dayData, studio, assets);
+  addWarmupSlide(pres, studio, assets);
+  addBlockSlide(pres, block1, dayData, barY, barH, 'bags', 1, studio, assets);
+  addBlockSlide(pres, block2, dayData, barY, barH, 'bags', 2, studio, assets);
   if (dayData.justBash) addJustBashSlide(pres, dayData.justBashText, assets);
-  addWalkoutSlide(pres, assets);
+  addWalkoutSlide(pres, studio, assets);
 
   await pres.writeFile({ fileName: buildFileName(studio, date, 'BAGS', dayData.type) });
 }
@@ -432,21 +434,20 @@ export async function generateFloorDeck(dayData, dayName, studio, date, assets) 
   pres.defineLayout({ name: 'BASH', width: W, height: H });
   pres.layout = 'BASH';
 
-  const barYFrac = BAR_Y[studio];
-  const barY = H * barYFrac;
-  const barH = H - barY;
+  const barY = BAR_Y[studio];
+  const barH = BAR_H[studio];
 
   const count = BLOCK_COUNTS[dayData.type];
   const block1 = dayData.floorBlock1.slice(0, count);
   const block2 = dayData.floorBlock2.slice(0, count);
 
   addIntroSlide(pres, studio, assets);
-  addCorePunchesSlide(pres, dayData, barY, barH, assets);
-  addWarmupSlide(pres, assets);
-  addBlockSlide(pres, block1, dayData, barY, barH, 'floor', 1, assets);
-  addBlockSlide(pres, block2, dayData, barY, barH, 'floor', 2, assets);
+  addCorePunchesSlide(pres, dayData, studio, assets);
+  addWarmupSlide(pres, studio, assets);
+  addBlockSlide(pres, block1, dayData, barY, barH, 'floor', 1, studio, assets);
+  addBlockSlide(pres, block2, dayData, barY, barH, 'floor', 2, studio, assets);
   if (dayData.justBash) addJustBashSlide(pres, dayData.justBashText, assets);
-  addWalkoutSlide(pres, assets);
+  addWalkoutSlide(pres, studio, assets);
 
   await pres.writeFile({ fileName: buildFileName(studio, date, 'FLOOR', dayData.type) });
 }

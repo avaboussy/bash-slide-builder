@@ -36,14 +36,21 @@ function renderHeader() {
   const dotContainer = document.getElementById('assetDots');
   if (dotContainer) {
     const KEY_LABELS = {
-      'intro_ballston': 'Intro Ballston', 'intro_rosslyn': 'Intro Rosslyn', 'intro_mosaic': 'Intro Mosaic',
+      'intro_bar': 'Intro Bar',
       'corepunches_none': 'Core (none)', 'corepunches_duck': 'Core+Duck', 'corepunches_roll': 'Core+Roll',
       'corepunches_dash': 'Core+Dash', 'corepunches_duck_roll': 'Core+Duck+Roll',
       'corepunches_duck_dash': 'Core+Duck+Dash', 'corepunches_roll_dash': 'Core+Roll+Dash',
       'corepunches_duck_roll_dash': 'Core+All',
-      'warmup': 'Warmup', 'justbash': 'JustBash', 'walkout': 'Walkout',
-      'freestyle_3col': 'Freestyle 3col', 'freestyle_4col': 'Freestyle 4col', 'freestyle_6col': 'Freestyle 6col',
-      'shoeshine_3col': 'Shoeshine 3col', 'shoeshine_4col': 'Shoeshine 4col', 'shoeshine_6col': 'Shoeshine 6col',
+      'warmup_bar': 'Warmup', 'justbash': 'JustBash', 'walkout_bar': 'Walkout',
+      'freestyle_3col': 'Freestyle 3', 'freestyle_4col': 'Freestyle 4', 'freestyle_6col': 'Freestyle 6',
+      'shoeshine_3col': 'Shoeshine 3', 'shoeshine_4col': 'Shoeshine 4', 'shoeshine_6col': 'Shoeshine 6',
+      'bags_3col': 'Bags 3col', 'bags_4col': 'Bags 4col', 'bags_6col': 'Bags 6col',
+      'floor_3col_timed': 'Floor 3 Timed', 'floor_3col_reps': 'Floor 3 Reps',
+      'floor_3col_timed_buyin': 'Floor 3 Timed+BI', 'floor_3col_reps_buyin': 'Floor 3 Reps+BI',
+      'floor_4col_timed': 'Floor 4 Timed', 'floor_4col_reps': 'Floor 4 Reps',
+      'floor_4col_timed_buyin': 'Floor 4 Timed+BI', 'floor_4col_reps_buyin': 'Floor 4 Reps+BI',
+      'floor_6col_timed': 'Floor 6 Timed', 'floor_6col_reps': 'Floor 6 Reps',
+      'floor_6col_timed_buyin': 'Floor 6 Timed+BI', 'floor_6col_reps_buyin': 'Floor 6 Reps+BI',
       'duck': 'Duck', 'roll': 'Roll', 'dash': 'Dash',
     };
     dotContainer.innerHTML = Object.entries(KEY_LABELS).map(([k, label]) => {
@@ -125,20 +132,26 @@ function renderEditor() {
           <input type="checkbox" ${buyInOn ? 'checked' : ''} onchange="toggleBuyIn(${di},${blockNum},this.checked)">
           <span class="buyin-label">Buy In</span>
         </label>` : '';
-      const nameField = (isFirst && buyInOn)
+      // Normal name/reps fields always shown
+      const nameField = `<input type="text" placeholder="Exercise name" value="${esc(ex.name)}"
+           oninput="upFloor(${di},'${blockKey}',${ei},'name',this.value)">
+         ${d.floorMode === 'reps' ? `<input type="text" placeholder="Reps" value="${esc(ex.reps)}"
+           oninput="upFloor(${di},'${blockKey}',${ei},'reps',this.value)"
+           style="margin-top:4px;font-size:11px;">` : ''}`;
+
+      // Buy-in input shown below when toggled on (replaces the name visually on the slide)
+      const buyInField = (isFirst && buyInOn)
         ? `<input type="text" placeholder="Buy-in exercise" value="${esc(buyInTxt)}"
              oninput="upBuyIn(${di},${blockNum},'text',this.value)"
              style="margin-top:4px;font-size:12px;border-color:#4a9eff;">
            <div style="font-size:9px;color:#4a9eff;font-weight:700;letter-spacing:1px;margin-top:3px;">TIMED WITH BAGS</div>`
-        : `<input type="text" placeholder="Exercise name" value="${esc(ex.name)}"
-             oninput="upFloor(${di},'${blockKey}',${ei},'name',this.value)">
-           ${d.floorMode === 'reps' ? `<input type="text" placeholder="Reps" value="${esc(ex.reps)}"
-             oninput="upFloor(${di},'${blockKey}',${ei},'reps',this.value)"
-             style="margin-top:4px;font-size:11px;">` : ''}`;
+        : '';
+
       return `<div class="combo-cell">
         <div class="cell-label">Exercise ${ei + 1}</div>
-        ${buyInToggle}
         ${nameField}
+        ${buyInField}
+        ${buyInToggle}
       </div>`;
     }).join('');
   }
