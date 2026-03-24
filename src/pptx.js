@@ -1,5 +1,5 @@
 import PptxGenJS from 'pptxgenjs';
-import { BLOCK_COUNTS, BAR_Y } from './state.js';
+import { BLOCK_COUNTS, BAR_Y, ABBREV_MAP } from './state.js';
 
 // Slide dimensions match real templates: 14.222" x 10.667"
 const W = 14.222;
@@ -10,6 +10,7 @@ const C = {
   red:    'E8001D',
   white:  'FFFFFF',
   yellow: 'FFD600',
+  blue:   '4a9eff',
   gray:   '1A1A1A',
 };
 
@@ -141,12 +142,22 @@ function addBlockSlide(pres, items, dayData, barY, barH, blockType, blockNum, as
 function addBagsCombos(slide, pres, combos, dayData, barY, barH, cols, cw, assets) {
   const count = combos.length;
 
+  // Token classifier: returns 'abbrev', 'icon', or 'number'
+  // Abbreviations expand to their icon parent for rendering
+  function classifyToken(tok) {
+    const upper = tok.toUpperCase();
+    if (ABBREV_MAP[upper]) return 'abbrev';
+    const lower = tok.toLowerCase();
+    if (['duck', 'roll', 'dash'].includes(lower)) return 'icon';
+    return 'number';
+  }
+
   combos.forEach((combo, i) => {
     const col = i % cols;
     const x = col * cw;
     const cellPad = cw * 0.05;
 
-    // Check if this cell should be a full-cell image (freestyle/shoeshine)
+    // Full-cell image check (freestyle / shoeshine)
     const pLower = (combo.punches || '').toLowerCase().trim();
     const nLower = (combo.name || '').toLowerCase().trim();
     const isFreestyle = pLower === 'freestyle' || nLower === 'freestyle';
@@ -160,7 +171,6 @@ function addBagsCombos(slide, pres, combos, dayData, barY, barH, cols, cw, asset
         slide.addImage({ data: dataUrl, x, y: barY, w: cw, h: barH });
         return;
       }
-      // Fallback if image not loaded: styled text
       slide.addText(imgName.toUpperCase(), {
         x: x + cellPad, y: barY, w: cw - cellPad * 2, h: barH,
         fontSize: 28, fontFace: 'Arial Black', bold: true, italic: true,
@@ -169,10 +179,12 @@ function addBagsCombos(slide, pres, combos, dayData, barY, barH, cols, cw, asset
       return;
     }
 
-    // Normal combo cell
-    const labelH = barH * 0.22;
-    const punchH = barH * 0.42;
-    const nameH  = barH * 0.28;
+    // Layout: shrink punch area slightly when nonstop is on to fit the extra line
+    const hasNonstop = !!combo.nonstop;
+    const labelH    = barH * 0.22;
+    const punchH    = barH * (hasNonstop ? 0.35 : 0.42);
+    const nonstopH  = barH * 0.10;
+    const nameH     = barH * (hasNonstop ? 0.22 : 0.28);
 
     // "COMBO N" label
     slide.addText(`COMBO ${i + 1}`, {
@@ -182,20 +194,22 @@ function addBagsCombos(slide, pres, combos, dayData, barY, barH, cols, cw, asset
       color: C.red, align: 'center', valign: 'middle', margin: 0,
     });
 
-    // Punch sequence
+    // Punch sequence — abbrevs and icon words both render yellow
     if (combo.punches) {
-      // Check for inline icons: render yellow for duck/roll/dash tokens
       const tokens = combo.punches.trim().split(/\s+/);
-      const ICON_TOKENS = new Set(['duck', 'roll', 'dash', '⚡']);
-      const hasIcons = tokens.some(t => ICON_TOKENS.has(t.toLowerCase()));
+      const needsRuns = tokens.some(t => {
+        const type = classifyToken(t);
+        return type === 'abbrev' || type === 'icon';
+      });
 
-      if (hasIcons) {
+      if (needsRuns) {
         const runs = tokens.map((tok, ti) => {
-          const isIcon = ICON_TOKENS.has(tok.toLowerCase());
+          const type = classifyToken(tok);
+          const isHighlight = type === 'abbrev' || type === 'icon';
           return {
             text: tok.toUpperCase() + (ti < tokens.length - 1 ? ' ' : ''),
             options: {
-              color: isIcon ? C.yellow : C.white,
+              color: isHighlight ? C.yellow : C.white,
               bold: true,
               fontSize: count <= 3 ? 48 : 32,
               fontFace: 'Arial Black',
@@ -219,11 +233,24 @@ function addBagsCombos(slide, pres, combos, dayData, barY, barH, cols, cw, asset
       }
     }
 
+    // NONSTOP label — blue, between punch and name
+    if (hasNonstop) {
+      const nonstopY = barY + labelH + barH * 0.03 + punchH;
+      slide.addText('NONSTOP', {
+        x: x + cellPad, y: nonstopY, w: cw - cellPad * 2, h: nonstopH,
+        fontSize: count <= 3 ? 14 : 10,
+        fontFace: 'Arial', bold: true,
+        color: C.blue, align: 'center', valign: 'middle',
+        charSpacing: 2, margin: 0,
+      });
+    }
+
     // Combo name
     const displayName = combo.name || autoName(combo.punches);
     if (displayName) {
+      const nameY = barY + labelH + barH * 0.03 + punchH + (hasNonstop ? nonstopH : barH * 0.04);
       slide.addText(displayName.toUpperCase(), {
-        x: x + cellPad, y: barY + labelH + punchH + barH * 0.04,
+        x: x + cellPad, y: nameY,
         w: cw - cellPad * 2, h: nameH,
         fontSize: count <= 3 ? 14 : 10,
         fontFace: 'Arial', bold: true,

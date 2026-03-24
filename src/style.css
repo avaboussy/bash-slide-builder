@@ -400,6 +400,112 @@ textarea { resize: vertical; min-height: 50px; }
 }
 .justbash-text-input::placeholder { color: var(--gray3) !important; }
 
+/* Nonstop toggle */
+.nonstop-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  cursor: pointer;
+}
+.nonstop-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #4a9eff;
+  text-transform: uppercase;
+}
+.nonstop-row input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  accent-color: #4a9eff;
+  cursor: pointer;
+}
+
+/* Abbreviation cheat sheet */
+.cheat-card .card-body { padding: 10px 16px; }
+.cheat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.cheat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--dark);
+  border: 1px solid var(--gray3);
+  border-radius: 4px;
+}
+.cheat-abbr {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #4a9eff;
+  flex-shrink: 0;
+  min-width: 30px;
+}
+.cheat-full {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Cheat sheet */
+.cheatsheet {
+  padding: 0 8px;
+}
+.cheat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--gray2);
+}
+.cheat-row:last-child { border-bottom: none; }
+.cheat-abbrev {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--yellow);
+  min-width: 36px;
+}
+.cheat-full {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Nonstop toggle row */
+.nonstop-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+.nonstop-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--red);
+  cursor: pointer;
+}
+.nonstop-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #4a9eff;
+  text-transform: uppercase;
+}
+
 /* Buy-in row */
 .buyin-row {
   display: flex;

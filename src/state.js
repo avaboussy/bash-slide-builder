@@ -40,7 +40,7 @@ function assetPath(key) {
   return `/images/${key}`;
 }
 
-const newBlock = () => Array.from({ length: 6 }, () => ({ punches: '', name: '' }));
+const newBlock = () => Array.from({ length: 6 }, () => ({ punches: '', name: '', nonstop: false }));
 const newFloorBlock = () => Array.from({ length: 6 }, () => ({ name: '', reps: '' }));
 
 const newDay = () => ({
@@ -62,8 +62,28 @@ export const state = {
   day: 0,
   week: DAYS.map(() => newDay()),
   assets: {},
-  studio: 'Ballston',
   date: '',
+};
+
+// Abbreviation → icon key mapping (used in punch sequence parsing)
+export const ABBREV_MAP = {
+  // Duck variants → duck icon
+  'DKF': 'duck', 'DKB': 'duck', 'DKD': 'duck',
+  // Roll variants → roll icon
+  'RF': 'roll', 'RB': 'roll',
+  // Dash variants → dash icon
+  'DO': 'dash', 'DI': 'dash',
+};
+
+// Full expansion labels for the cheat sheet
+export const ABBREV_LABELS = {
+  'DKF': 'DUCK FRONT',
+  'DKB': 'DUCK BACK',
+  'DKD': 'DUCK DOWN',
+  'RF':  'ROLL FRONT',
+  'RB':  'ROLL BACK',
+  'DO':  'DASH OUT',
+  'DI':  'DASH IN',
 };
 
 // ── ASSET LOADING ─────────────────────────────────────────

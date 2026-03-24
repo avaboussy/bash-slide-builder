@@ -1,4 +1,4 @@
-import { state, DAYS, DAY_TYPES, STUDIOS, BLOCK_COUNTS } from './state.js';
+import { state, DAYS, DAY_TYPES, STUDIOS, BLOCK_COUNTS, ABBREV_LABELS } from './state.js';
 import { generateBagsDeck, generateFloorDeck } from './pptx.js';
 
 function esc(s) {
@@ -32,13 +32,6 @@ export function renderAll() {
 }
 
 function renderHeader() {
-  const sg = document.getElementById('studioGroup');
-  if (sg) {
-    sg.innerHTML = STUDIOS.map(s =>
-      `<button class="studio-btn ${state.studio === s ? 'active' : ''}" onclick="setStudio('${s}')">${s}</button>`
-    ).join('');
-  }
-
   const dateInput = document.getElementById('dateInput');
   if (dateInput) dateInput.value = state.date;
 
@@ -97,7 +90,7 @@ function renderEditor() {
       const id = `an-${di}-${blockKey}-${ci}`;
       return `<div class="combo-cell">
         <div class="cell-label">Combo ${ci + 1}</div>
-        <input class="punches-input" type="text" placeholder="1 2 3…" value="${esc(combo.punches)}"
+        <input class="punches-input" type="text" placeholder="1 2 3 DKF…" value="${esc(combo.punches)}"
           oninput="upCombo(${di},'${blockKey}',${ci},'punches',this.value)">
         <input type="text" placeholder="Name (optional)" value="${esc(combo.name)}"
           oninput="upCombo(${di},'${blockKey}',${ci},'name',this.value)"
@@ -109,6 +102,10 @@ function renderEditor() {
               ? `<span style="color:#444">${esc(gen)}</span>`
               : '<span style="color:#2a2a2a">auto-name</span>'}
         </div>
+        <label class="nonstop-row">
+          <input type="checkbox" ${combo.nonstop ? 'checked' : ''} onchange="upCombo(${di},'${blockKey}',${ci},'nonstop',this.checked)">
+          <span class="nonstop-label">NONSTOP</span>
+        </label>
       </div>`;
     }).join('');
   }
@@ -189,6 +186,18 @@ function renderEditor() {
 
     <div class="type-selector">${typeSelector}</div>
 
+    <div class="card cheat-card">
+      <div class="card-header">
+        <span class="card-title">Abbreviations</span>
+        <span class="card-meta">Use in punch sequences</span>
+      </div>
+      <div class="card-body">
+        <div class="cheat-grid">${Object.entries(ABBREV_LABELS).map(([abbr, full]) =>
+      `<div class="cheat-item"><span class="cheat-abbr">${abbr}</span><span class="cheat-full">${full}</span></div>`
+    ).join('')}</div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-header">
         <span class="card-title">Bag Combos</span>
@@ -246,8 +255,6 @@ function renderEditor() {
 
 window.selDay = (i) => { state.day = i; renderSidebar(); renderEditor(); };
 
-window.setStudio = (s) => { state.studio = s; renderHeader(); };
-
 window.setDateVal = (v) => { state.date = v; };
 
 window.setType = (di, t) => { state.week[di].type = t; renderSidebar(); renderEditor(); };
@@ -255,6 +262,7 @@ window.setType = (di, t) => { state.week[di].type = t; renderSidebar(); renderEd
 window.setFloorMode = (di, mode) => { state.week[di].floorMode = mode; renderEditor(); };
 
 window.upCombo = (di, blockKey, ci, field, val) => {
+  // checkboxes come in as booleans already
   state.week[di][blockKey][ci][field] = val;
   if (field === 'punches') {
     const el = document.getElementById(`an-${di}-${blockKey}-${ci}`);
@@ -265,7 +273,7 @@ window.upCombo = (di, blockKey, ci, field, val) => {
         : '<span style="color:#2a2a2a">auto-name</span>';
     }
   }
-  renderSidebar();
+  if (field !== 'nonstop') renderSidebar();
 };
 
 window.upFloor = (di, blockKey, ei, field, val) => {
@@ -298,11 +306,13 @@ window.upBuyIn = (di, blockNum, field, val) => {
 window.genDay = async () => {
   const dayData = state.week[state.day];
   const dayName = DAYS[state.day];
-  setStatus('⏳ Generating…', 'loading');
+  setStatus('⏳ Generating 6 files…', 'loading');
   try {
-    await generateBagsDeck(dayData, dayName, state.studio, state.date, state.assets);
-    await generateFloorDeck(dayData, dayName, state.studio, state.date, state.assets);
-    setStatus(`✓ ${state.studio.toUpperCase()} ${state.date} — ${dayName} Bags + Floor downloaded`, 'success');
+    for (const studio of STUDIOS) {
+      await generateBagsDeck(dayData, dayName, studio, state.date, state.assets);
+      await generateFloorDeck(dayData, dayName, studio, state.date, state.assets);
+    }
+    setStatus(`✓ ${state.date} ${dayName} — 6 files downloaded (all studios)`, 'success');
   } catch (e) {
     setStatus('✗ Error: ' + e.message, 'error');
     console.error(e);
@@ -310,15 +320,17 @@ window.genDay = async () => {
 };
 
 window.genWeek = async () => {
-  setStatus('⏳ Generating full week (14 files)…', 'loading');
+  setStatus('⏳ Generating full week (42 files)…', 'loading');
   try {
     for (let i = 0; i < 7; i++) {
       const dayData = state.week[i];
       const dayName = DAYS[i];
-      await generateBagsDeck(dayData, dayName, state.studio, state.date, state.assets);
-      await generateFloorDeck(dayData, dayName, state.studio, state.date, state.assets);
+      for (const studio of STUDIOS) {
+        await generateBagsDeck(dayData, dayName, studio, state.date, state.assets);
+        await generateFloorDeck(dayData, dayName, studio, state.date, state.assets);
+      }
     }
-    setStatus(`✓ Full week generated — 14 files downloaded`, 'success');
+    setStatus(`✓ Full week — 42 files downloaded (all studios)`, 'success');
   } catch (e) {
     setStatus('✗ Error: ' + e.message, 'error');
     console.error(e);
