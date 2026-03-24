@@ -1,0 +1,326 @@
+import { state, DAYS, DAY_TYPES, STUDIOS, BLOCK_COUNTS } from './state.js';
+import { generateBagsDeck, generateFloorDeck } from './pptx.js';
+
+function esc(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function autoName(punches) {
+  if (!punches) return '';
+  const map = {
+    '1': 'Jab', '2': 'Cross', '3': 'Front Hook',
+    '4': 'Back Hook', '5': 'Front Upper', '6': 'Back Upper',
+  };
+  const parts = (punches || '').trim().split(/\s+/).filter(Boolean);
+  const named = parts.map(x => map[x] || x);
+  return named.join(' – ');
+}
+
+function setStatus(msg, type = 'loading') {
+  const el = document.getElementById('statusbar');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `statusbar show ${type}`;
+}
+
+// ── RENDER ────────────────────────────────────────────────
+
+export function renderAll() {
+  renderHeader();
+  renderSidebar();
+  renderEditor();
+}
+
+function renderHeader() {
+  const sg = document.getElementById('studioGroup');
+  if (sg) {
+    sg.innerHTML = STUDIOS.map(s =>
+      `<button class="studio-btn ${state.studio === s ? 'active' : ''}" onclick="setStudio('${s}')">${s}</button>`
+    ).join('');
+  }
+
+  const dateInput = document.getElementById('dateInput');
+  if (dateInput) dateInput.value = state.date;
+
+  // Asset status dots
+  const dotContainer = document.getElementById('assetDots');
+  if (dotContainer) {
+    const KEY_LABELS = {
+      'intro_ballston': 'Intro Ballston', 'intro_rosslyn': 'Intro Rosslyn', 'intro_mosaic': 'Intro Mosaic',
+      'corepunches': '6 Core', 'warmup': 'Warmup', 'justbash': 'JustBash', 'walkout': 'Walkout',
+      'freestyle_3col': 'Freestyle 3col', 'freestyle_4col': 'Freestyle 4col', 'freestyle_6col': 'Freestyle 6col',
+      'shoeshine_3col': 'Shoeshine 3col', 'shoeshine_4col': 'Shoeshine 4col', 'shoeshine_6col': 'Shoeshine 6col',
+      'duck': 'Duck', 'roll': 'Roll', 'dash': 'Dash',
+    };
+    dotContainer.innerHTML = Object.entries(KEY_LABELS).map(([k, label]) => {
+      const loaded = !!state.assets[k];
+      return `<div class="asset-dot ${loaded ? 'loaded' : 'missing'}" title="${label}: ${loaded ? '✓ loaded' : '✗ missing'}"></div>`;
+    }).join('');
+  }
+}
+
+function renderSidebar() {
+  const dayList = document.getElementById('dayList');
+  if (!dayList) return;
+  dayList.innerHTML = DAYS.map((d, i) => {
+    const dd = state.week[i];
+    const hasData = dd.bagsBlock1.some(c => c.punches) || dd.floorBlock1.some(e => e.name);
+    return `<button class="day-btn ${i === state.day ? 'active' : ''}" onclick="selDay(${i})">
+      <span class="dot ${hasData ? 'on' : ''}"></span>
+      <span class="dn">${d}</span>
+      <span class="dt">${dd.type.split(' ')[0].toUpperCase()}</span>
+    </button>`;
+  }).join('');
+}
+
+function renderEditor() {
+  const editor = document.getElementById('editor');
+  if (!editor) return;
+
+  const di = state.day;
+  const d = state.week[di];
+  const dayName = DAYS[di];
+  const count = BLOCK_COUNTS[d.type];
+  const cols = Math.min(count, 3);
+  const gridClass = `cgrid g${cols}`;
+
+  // Type selector
+  const typeSelector = DAY_TYPES.map(t =>
+    `<button class="type-btn ${d.type === t ? 'active' : ''}" onclick="setType(${di},'${t}')">${t}</button>`
+  ).join('');
+
+  // Block of combo cells
+  function comboCells(block, blockKey) {
+    return Array.from({ length: count }, (_, ci) => {
+      const combo = block[ci] || { punches: '', name: '' };
+      const gen = autoName(combo.punches);
+      const id = `an-${di}-${blockKey}-${ci}`;
+      return `<div class="combo-cell">
+        <div class="cell-label">Combo ${ci + 1}</div>
+        <input class="punches-input" type="text" placeholder="1 2 3…" value="${esc(combo.punches)}"
+          oninput="upCombo(${di},'${blockKey}',${ci},'punches',this.value)">
+        <input type="text" placeholder="Name (optional)" value="${esc(combo.name)}"
+          oninput="upCombo(${di},'${blockKey}',${ci},'name',this.value)"
+          style="margin-top:5px;font-size:11px;">
+        <div class="auto-name" id="${id}">
+          ${combo.name
+            ? `<span style="color:#666">${esc(combo.name)}</span>`
+            : gen
+              ? `<span style="color:#444">${esc(gen)}</span>`
+              : '<span style="color:#2a2a2a">auto-name</span>'}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Block of floor cells
+  function floorCells(block, blockKey) {
+    return Array.from({ length: count }, (_, ei) => {
+      const ex = block[ei] || { name: '', reps: '' };
+      return `<div class="combo-cell">
+        <div class="cell-label">Exercise ${ei + 1}</div>
+        <input type="text" placeholder="Exercise name" value="${esc(ex.name)}"
+          oninput="upFloor(${di},'${blockKey}',${ei},'name',this.value)">
+        ${d.floorMode === 'reps'
+          ? `<input type="text" placeholder="Reps" value="${esc(ex.reps)}"
+               oninput="upFloor(${di},'${blockKey}',${ei},'reps',this.value)"
+               style="margin-top:5px;font-size:11px;">`
+          : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // Buy-in widget for a floor block
+  function buyInWidget(blockNum) {
+    const on  = blockNum === 1 ? d.buyIn1  : d.buyIn2;
+    const txt = blockNum === 1 ? d.buyInText1  : d.buyInText2;
+    const val = blockNum === 1 ? d.buyInValue1 : d.buyInValue2;
+    return `<div class="buyin-row">
+      <label class="justbash-toggle" style="flex-shrink:0">
+        <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleBuyIn(${di},${blockNum},this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span class="buyin-label">Buy In</span>
+      ${on ? `
+        <input type="text" class="buyin-text" placeholder="Exercise name" value="${esc(txt)}"
+          oninput="upBuyIn(${di},${blockNum},'text',this.value)"
+          style="flex:1;font-size:12px;">
+        <span style="font-size:10px;color:#4a9eff;font-weight:700;letter-spacing:1px;white-space:nowrap">TIMED WITH BAGS</span>
+      ` : ''}
+    </div>`;
+  }
+
+  // Floor mode toggle
+  const floorToggle = `
+    <div class="floor-toggle">
+      <span class="toggle-label">Mode:</span>
+      <div class="toggle-group">
+        <button class="toggle-opt ${d.floorMode === 'timed' ? 'active' : ''}" onclick="setFloorMode(${di},'timed')">Timed</button>
+        <button class="toggle-opt ${d.floorMode === 'reps' ? 'active' : ''}" onclick="setFloorMode(${di},'reps')">Reps</button>
+      </div>
+    </div>`;
+
+  // JustBash card
+  const justBashCard = `
+    <div class="card justbash-card">
+      <div class="card-header">
+        <span class="card-title">#JustBash Slide</span>
+        <span class="card-meta">Optional</span>
+      </div>
+      <div class="card-body">
+        <div class="justbash-row">
+          <label class="justbash-toggle">
+            <input type="checkbox" ${d.justBash ? 'checked' : ''} onchange="toggleJustBash(${di},this.checked)">
+            <span class="toggle-track"></span>
+          </label>
+          <input type="text" class="justbash-text-input" placeholder="e.g. ISO SQUAT SHOESHINE"
+            value="${esc(d.justBashText)}"
+            ${!d.justBash ? 'disabled' : ''}
+            oninput="upJustBash(${di},this.value)">
+        </div>
+      </div>
+    </div>`;
+
+  editor.innerHTML = `
+    <div class="day-header">
+      <div class="day-title">${dayName}</div>
+      <div class="day-badge">${d.type}</div>
+    </div>
+
+    <div class="type-selector">${typeSelector}</div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Bag Combos</span>
+        <span class="card-meta">${count} per block</span>
+      </div>
+      <div class="card-body">
+        <div class="blocks-grid">
+          <div>
+            <div class="block-label">Block 1</div>
+            <div class="${gridClass}">${comboCells(d.bagsBlock1, 'bagsBlock1')}</div>
+          </div>
+          <div>
+            <div class="block-label">Block 2</div>
+            <div class="${gridClass}">${comboCells(d.bagsBlock2, 'bagsBlock2')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Floor Exercises</span>
+        <span class="card-meta">${count} per block</span>
+      </div>
+      <div class="card-body">
+        ${floorToggle}
+        <div class="blocks-grid">
+          <div>
+            <div class="block-label">Block 1</div>
+            ${buyInWidget(1)}
+            <div class="${gridClass}">${floorCells(d.floorBlock1, 'floorBlock1')}</div>
+          </div>
+          <div>
+            <div class="block-label">Block 2</div>
+            ${buyInWidget(2)}
+            <div class="${gridClass}">${floorCells(d.floorBlock2, 'floorBlock2')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    ${justBashCard}
+
+    <div class="generate-bar">
+      <div class="gen-opts">
+        <button class="gen-btn" onclick="genDay()">⬇ Generate ${dayName} (2 files)</button>
+        <button class="gen-btn secondary" onclick="genWeek()">⬇ Full Week (14 files)</button>
+      </div>
+      <div id="statusbar" class="statusbar"></div>
+    </div>
+  `;
+}
+
+// ── MUTATIONS ─────────────────────────────────────────────
+
+window.selDay = (i) => { state.day = i; renderSidebar(); renderEditor(); };
+
+window.setStudio = (s) => { state.studio = s; renderHeader(); };
+
+window.setDateVal = (v) => { state.date = v; };
+
+window.setType = (di, t) => { state.week[di].type = t; renderSidebar(); renderEditor(); };
+
+window.setFloorMode = (di, mode) => { state.week[di].floorMode = mode; renderEditor(); };
+
+window.upCombo = (di, blockKey, ci, field, val) => {
+  state.week[di][blockKey][ci][field] = val;
+  if (field === 'punches') {
+    const el = document.getElementById(`an-${di}-${blockKey}-${ci}`);
+    if (el) {
+      const gen = autoName(val);
+      el.innerHTML = gen
+        ? `<span style="color:#444">${esc(gen)}</span>`
+        : '<span style="color:#2a2a2a">auto-name</span>';
+    }
+  }
+  renderSidebar();
+};
+
+window.upFloor = (di, blockKey, ei, field, val) => {
+  state.week[di][blockKey][ei][field] = val;
+  renderSidebar();
+};
+
+window.toggleJustBash = (di, checked) => {
+  state.week[di].justBash = checked;
+  renderEditor();
+};
+
+window.upJustBash = (di, val) => {
+  state.week[di].justBashText = val;
+};
+
+window.toggleBuyIn = (di, blockNum, checked) => {
+  if (blockNum === 1) state.week[di].buyIn1 = checked;
+  else state.week[di].buyIn2 = checked;
+  renderEditor();
+};
+
+window.upBuyIn = (di, blockNum, field, val) => {
+  if (blockNum === 1) state.week[di].buyInText1 = val;
+  else state.week[di].buyInText2 = val;
+};
+
+// ── GENERATE ──────────────────────────────────────────────
+
+window.genDay = async () => {
+  const dayData = state.week[state.day];
+  const dayName = DAYS[state.day];
+  setStatus('⏳ Generating…', 'loading');
+  try {
+    await generateBagsDeck(dayData, dayName, state.studio, state.date, state.assets);
+    await generateFloorDeck(dayData, dayName, state.studio, state.date, state.assets);
+    setStatus(`✓ ${state.studio.toUpperCase()} ${state.date} — ${dayName} Bags + Floor downloaded`, 'success');
+  } catch (e) {
+    setStatus('✗ Error: ' + e.message, 'error');
+    console.error(e);
+  }
+};
+
+window.genWeek = async () => {
+  setStatus('⏳ Generating full week (14 files)…', 'loading');
+  try {
+    for (let i = 0; i < 7; i++) {
+      const dayData = state.week[i];
+      const dayName = DAYS[i];
+      await generateBagsDeck(dayData, dayName, state.studio, state.date, state.assets);
+      await generateFloorDeck(dayData, dayName, state.studio, state.date, state.assets);
+    }
+    setStatus(`✓ Full week generated — 14 files downloaded`, 'success');
+  } catch (e) {
+    setStatus('✗ Error: ' + e.message, 'error');
+    console.error(e);
+  }
+};
