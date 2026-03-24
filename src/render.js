@@ -40,7 +40,11 @@ function renderHeader() {
   if (dotContainer) {
     const KEY_LABELS = {
       'intro_ballston': 'Intro Ballston', 'intro_rosslyn': 'Intro Rosslyn', 'intro_mosaic': 'Intro Mosaic',
-      'corepunches': '6 Core', 'warmup': 'Warmup', 'justbash': 'JustBash', 'walkout': 'Walkout',
+      'corepunches_none': 'Core (none)', 'corepunches_duck': 'Core+Duck', 'corepunches_roll': 'Core+Roll',
+      'corepunches_dash': 'Core+Dash', 'corepunches_duck_roll': 'Core+Duck+Roll',
+      'corepunches_duck_dash': 'Core+Duck+Dash', 'corepunches_roll_dash': 'Core+Roll+Dash',
+      'corepunches_duck_roll_dash': 'Core+All',
+      'warmup': 'Warmup', 'justbash': 'JustBash', 'walkout': 'Walkout',
       'freestyle_3col': 'Freestyle 3col', 'freestyle_4col': 'Freestyle 4col', 'freestyle_6col': 'Freestyle 6col',
       'shoeshine_3col': 'Shoeshine 3col', 'shoeshine_4col': 'Shoeshine 4col', 'shoeshine_6col': 'Shoeshine 6col',
       'duck': 'Duck', 'roll': 'Roll', 'dash': 'Dash',
@@ -112,39 +116,34 @@ function renderEditor() {
 
   // Block of floor cells
   function floorCells(block, blockKey) {
+    const blockNum = blockKey === 'floorBlock1' ? 1 : 2;
+    const buyInOn  = blockNum === 1 ? d.buyIn1 : d.buyIn2;
+    const buyInTxt = blockNum === 1 ? d.buyInText1 : d.buyInText2;
     return Array.from({ length: count }, (_, ei) => {
       const ex = block[ei] || { name: '', reps: '' };
+      const isFirst = ei === 0;
+      // Exercise 1 has a buy-in toggle that replaces the name field when on
+      const buyInToggle = isFirst ? `
+        <label class="buyin-ex1-row">
+          <input type="checkbox" ${buyInOn ? 'checked' : ''} onchange="toggleBuyIn(${di},${blockNum},this.checked)">
+          <span class="buyin-label">Buy In</span>
+        </label>` : '';
+      const nameField = (isFirst && buyInOn)
+        ? `<input type="text" placeholder="Buy-in exercise" value="${esc(buyInTxt)}"
+             oninput="upBuyIn(${di},${blockNum},'text',this.value)"
+             style="margin-top:4px;font-size:12px;border-color:#4a9eff;">
+           <div style="font-size:9px;color:#4a9eff;font-weight:700;letter-spacing:1px;margin-top:3px;">TIMED WITH BAGS</div>`
+        : `<input type="text" placeholder="Exercise name" value="${esc(ex.name)}"
+             oninput="upFloor(${di},'${blockKey}',${ei},'name',this.value)">
+           ${d.floorMode === 'reps' ? `<input type="text" placeholder="Reps" value="${esc(ex.reps)}"
+             oninput="upFloor(${di},'${blockKey}',${ei},'reps',this.value)"
+             style="margin-top:4px;font-size:11px;">` : ''}`;
       return `<div class="combo-cell">
         <div class="cell-label">Exercise ${ei + 1}</div>
-        <input type="text" placeholder="Exercise name" value="${esc(ex.name)}"
-          oninput="upFloor(${di},'${blockKey}',${ei},'name',this.value)">
-        ${d.floorMode === 'reps'
-          ? `<input type="text" placeholder="Reps" value="${esc(ex.reps)}"
-               oninput="upFloor(${di},'${blockKey}',${ei},'reps',this.value)"
-               style="margin-top:5px;font-size:11px;">`
-          : ''}
+        ${buyInToggle}
+        ${nameField}
       </div>`;
     }).join('');
-  }
-
-  // Buy-in widget for a floor block
-  function buyInWidget(blockNum) {
-    const on  = blockNum === 1 ? d.buyIn1  : d.buyIn2;
-    const txt = blockNum === 1 ? d.buyInText1  : d.buyInText2;
-    const val = blockNum === 1 ? d.buyInValue1 : d.buyInValue2;
-    return `<div class="buyin-row">
-      <label class="justbash-toggle" style="flex-shrink:0">
-        <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleBuyIn(${di},${blockNum},this.checked)">
-        <span class="toggle-track"></span>
-      </label>
-      <span class="buyin-label">Buy In</span>
-      ${on ? `
-        <input type="text" class="buyin-text" placeholder="Exercise name" value="${esc(txt)}"
-          oninput="upBuyIn(${di},${blockNum},'text',this.value)"
-          style="flex:1;font-size:12px;">
-        <span style="font-size:10px;color:#4a9eff;font-weight:700;letter-spacing:1px;white-space:nowrap">TIMED WITH BAGS</span>
-      ` : ''}
-    </div>`;
   }
 
   // Floor mode toggle
@@ -227,12 +226,10 @@ function renderEditor() {
         <div class="blocks-grid">
           <div>
             <div class="block-label">Block 1</div>
-            ${buyInWidget(1)}
             <div class="${gridClass}">${floorCells(d.floorBlock1, 'floorBlock1')}</div>
           </div>
           <div>
             <div class="block-label">Block 2</div>
-            ${buyInWidget(2)}
             <div class="${gridClass}">${floorCells(d.floorBlock2, 'floorBlock2')}</div>
           </div>
         </div>

@@ -506,27 +506,27 @@ textarea { resize: vertical; min-height: 50px; }
   text-transform: uppercase;
 }
 
-/* Buy-in row */
-.buyin-row {
+/* Buy-in toggle on Exercise 1 */
+.buyin-ex1-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  padding: 6px 8px;
-  background: var(--dark);
-  border: 1px solid var(--gray3);
-  border-radius: 5px;
+  gap: 5px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+.buyin-ex1-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  accent-color: #4a9eff;
+  cursor: pointer;
 }
 .buyin-label {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #FF6600;
+  color: #4a9eff;
   white-space: nowrap;
-}
-.buyin-text, .buyin-val {
-  color: var(--white) !important;
 }
 
 /* Generate bar */

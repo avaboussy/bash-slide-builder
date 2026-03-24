@@ -26,11 +26,24 @@ export const BAR_Y = {
 // Icons (inline replacements) → /icons/
 // Everything else → /images/
 export const ALL_ASSET_KEYS = [
+  // Inline icons (loaded from /icons/)
   'duck', 'roll', 'dash',
+  // Full-cell replacements
   'freestyle_3col', 'freestyle_4col', 'freestyle_6col',
   'shoeshine_3col', 'shoeshine_4col', 'shoeshine_6col',
+  // Intro slides per studio
   'intro_ballston', 'intro_rosslyn', 'intro_mosaic',
-  'corepunches', 'warmup', 'justbash', 'walkout',
+  // 6 Core Punches — 8 variants based on defense combos present
+  'corepunches_none',
+  'corepunches_duck',
+  'corepunches_roll',
+  'corepunches_dash',
+  'corepunches_duck_roll',
+  'corepunches_duck_dash',
+  'corepunches_roll_dash',
+  'corepunches_duck_roll_dash',
+  // Other shared slides
+  'warmup', 'justbash', 'walkout',
 ];
 
 const INLINE_ICON_KEYS = ['duck', 'roll', 'dash'];

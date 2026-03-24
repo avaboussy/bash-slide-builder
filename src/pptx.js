@@ -73,10 +73,44 @@ function addIntroSlide(pres, studio, assets) {
   bgImage(slide, assets[key]);
 }
 
-function addCorePunchesSlide(pres, assets) {
+// Parse all combos in a day to find unique defense types present
+function detectDefense(dayData) {
+  const DUCK_ABBREVS  = new Set(['dkf','dkb','dkd','duck']);
+  const ROLL_ABBREVS  = new Set(['rf','rb','roll']);
+  const DASH_ABBREVS  = new Set(['do','di','dash']);
+  const defense = { duck: false, roll: false, dash: false };
+
+  const allBlocks = [
+    ...dayData.bagsBlock1, ...dayData.bagsBlock2,
+  ];
+  for (const combo of allBlocks) {
+    const tokens = (combo.punches || '').toLowerCase().split(/\s+/);
+    for (const tok of tokens) {
+      if (DUCK_ABBREVS.has(tok)) defense.duck = true;
+      if (ROLL_ABBREVS.has(tok)) defense.roll = true;
+      if (DASH_ABBREVS.has(tok)) defense.dash = true;
+    }
+  }
+  return defense;
+}
+
+function addCorePunchesSlide(pres, dayData, barY, barH, assets) {
   const slide = pres.addSlide();
   slide.background = { color: C.black };
-  bgImage(slide, assets['corepunches']);
+
+  // Build image key from detected defense combos
+  // e.g. corepunches_none, corepunches_duck, corepunches_duck_roll_dash
+  const defense = detectDefense(dayData);
+  const parts = [];
+  if (defense.duck) parts.push('duck');
+  if (defense.roll) parts.push('roll');
+  if (defense.dash) parts.push('dash');
+  const key = parts.length > 0
+    ? 'corepunches_' + parts.join('_')
+    : 'corepunches_none';
+
+  // Fall back to corepunches_none if the specific combo image isn't loaded
+  bgImage(slide, assets[key] || assets['corepunches_none']);
 }
 
 function addWarmupSlide(pres, assets) {
@@ -265,43 +299,9 @@ function addFloorExercises(slide, pres, exercises, dayData, barY, barH, cols, cw
   const count = exercises.length;
   const isReps = dayData.floorMode === 'reps';
 
-  // Buy-in: rendered as a full-width band at the very top of the bar
-  // Shrinks the remaining space for exercises when present
-  let exBarY = barY;
-  let exBarH = barH;
-
-  if (buyInOn && buyInTxt) {
-    const buyInH = barH * 0.20;
-    // Buy-in background band — blue
-    slide.addShape(pres.ShapeType.rect, {
-      x: 0, y: barY, w: W, h: buyInH,
-      fill: { color: '0a1a2e' }, line: { color: '4a9eff', width: 1 },
-    });
-    // "BUY IN" label
-    slide.addText('BUY IN', {
-      x: 0, y: barY, w: W * 0.10, h: buyInH,
-      fontSize: 10, fontFace: 'Arial Black', bold: true,
-      color: '4a9eff', align: 'center', valign: 'middle', margin: 0,
-    });
-    // Exercise name
-    slide.addText(buyInTxt.toUpperCase(), {
-      x: W * 0.10, y: barY, w: W * 0.62, h: buyInH,
-      fontSize: 16, fontFace: 'Arial Black', bold: true,
-      color: C.white, align: 'center', valign: 'middle', charSpacing: 1, margin: 0,
-    });
-    // "TIMED WITH BAGS" label on the right
-    slide.addText('TIMED WITH BAGS', {
-      x: W * 0.72, y: barY, w: W * 0.28, h: buyInH,
-      fontSize: 11, fontFace: 'Arial Black', bold: true,
-      color: '4a9eff', align: 'center', valign: 'middle', charSpacing: 1, margin: 0,
-    });
-    exBarY = barY + buyInH;
-    exBarH = barH - buyInH;
-  }
-
   // Mode label
   slide.addText(isReps ? 'REP BASED' : 'TIMED WITH BAGS', {
-    x: 0, y: exBarY + exBarH * 0.02, w: W, h: exBarH * 0.18,
+    x: 0, y: barY + barH * 0.02, w: W, h: barH * 0.18,
     fontSize: 18, fontFace: 'Arial Black', bold: true,
     color: isReps ? 'FF6600' : C.yellow,
     align: 'center', valign: 'middle', charSpacing: 2, margin: 0,
@@ -311,12 +311,39 @@ function addFloorExercises(slide, pres, exercises, dayData, barY, barH, cols, cw
     const col = i % cols;
     const x = col * cw;
     const cellPad = cw * 0.05;
-    const labelY  = exBarY + exBarH * 0.22;
-    const labelH  = exBarH * 0.22;
-    const nameY   = labelY + labelH + exBarH * 0.02;
-    const nameH   = exBarH * 0.35;
+    const labelY  = barY + barH * 0.22;
+    const labelH  = barH * 0.22;
+    const nameY   = labelY + labelH + barH * 0.02;
+    const nameH   = barH * 0.35;
     const repsY   = nameY + nameH;
-    const repsH   = exBarH * 0.15;
+    const repsH   = barH * 0.15;
+
+    // Exercise 1 with buy-in: replace name with buy-in text + "TIMED WITH BAGS"
+    if (i === 0 && buyInOn && buyInTxt) {
+      // "EXERCISE 1" label — keep it
+      slide.addText('EXERCISE 1', {
+        x: x + cellPad, y: labelY, w: cw - cellPad * 2, h: labelH,
+        fontSize: count <= 3 ? 20 : 14,
+        fontFace: 'Arial Black', bold: true, italic: true,
+        color: C.red, align: 'center', valign: 'middle', margin: 0,
+      });
+      // Buy-in exercise name
+      slide.addText(buyInTxt.toUpperCase(), {
+        x: x + cellPad, y: nameY, w: cw - cellPad * 2, h: nameH,
+        fontSize: count <= 3 ? 20 : 14,
+        fontFace: 'Arial', bold: true,
+        color: C.white, align: 'center', valign: 'middle', margin: 0,
+      });
+      // "TIMED WITH BAGS" in blue
+      slide.addText('TIMED WITH BAGS', {
+        x: x + cellPad, y: repsY, w: cw - cellPad * 2, h: repsH,
+        fontSize: count <= 3 ? 11 : 9,
+        fontFace: 'Arial', bold: true,
+        color: C.blue, align: 'center', valign: 'middle',
+        charSpacing: 1, margin: 0,
+      });
+      return;
+    }
 
     // "EXERCISE N" label
     slide.addText(`EXERCISE ${i + 1}`, {
@@ -390,7 +417,7 @@ export async function generateBagsDeck(dayData, dayName, studio, date, assets) {
   const block2 = dayData.bagsBlock2.slice(0, count);
 
   addIntroSlide(pres, studio, assets);
-  addCorePunchesSlide(pres, assets);
+  addCorePunchesSlide(pres, dayData, barY, barH, assets);
   addWarmupSlide(pres, assets);
   addBlockSlide(pres, block1, dayData, barY, barH, 'bags', 1, assets);
   addBlockSlide(pres, block2, dayData, barY, barH, 'bags', 2, assets);
@@ -414,7 +441,7 @@ export async function generateFloorDeck(dayData, dayName, studio, date, assets) 
   const block2 = dayData.floorBlock2.slice(0, count);
 
   addIntroSlide(pres, studio, assets);
-  addCorePunchesSlide(pres, assets);
+  addCorePunchesSlide(pres, dayData, barY, barH, assets);
   addWarmupSlide(pres, assets);
   addBlockSlide(pres, block1, dayData, barY, barH, 'floor', 1, assets);
   addBlockSlide(pres, block2, dayData, barY, barH, 'floor', 2, assets);
