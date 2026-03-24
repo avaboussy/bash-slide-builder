@@ -59,6 +59,7 @@ const newFloorBlock = () => Array.from({ length: 6 }, () => ({ name: '', reps: '
 const newDay = () => ({
   type: 'Strength',
   floorMode: 'timed',
+  date: '',
   bagsBlock1: newBlock(),
   bagsBlock2: newBlock(),
   floorBlock1: newFloorBlock(),
@@ -75,7 +76,6 @@ export const state = {
   day: 0,
   week: DAYS.map(() => newDay()),
   assets: {},
-  date: '',
 };
 
 // Abbreviation → icon key mapping (used in punch sequence parsing)

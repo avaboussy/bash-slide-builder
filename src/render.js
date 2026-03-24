@@ -32,9 +32,6 @@ export function renderAll() {
 }
 
 function renderHeader() {
-  const dateInput = document.getElementById('dateInput');
-  if (dateInput) dateInput.value = state.date;
-
   // Asset status dots
   const dotContainer = document.getElementById('assetDots');
   if (dotContainer) {
@@ -180,6 +177,9 @@ function renderEditor() {
   editor.innerHTML = `
     <div class="day-header">
       <div class="day-title">${dayName}</div>
+      <input class="day-date-input" type="text" placeholder="3.22"
+        value="${esc(d.date)}"
+        oninput="setDayDate(${di}, this.value)">
       <div class="day-badge">${d.type}</div>
     </div>
 
@@ -252,7 +252,7 @@ function renderEditor() {
 
 window.selDay = (i) => { state.day = i; renderSidebar(); renderEditor(); };
 
-window.setDateVal = (v) => { state.date = v; };
+window.setDayDate = (i, val) => { state.week[i].date = val; };
 
 window.setType = (di, t) => { state.week[di].type = t; renderSidebar(); renderEditor(); };
 
@@ -306,10 +306,10 @@ window.genDay = async () => {
   setStatus('⏳ Generating 6 files…', 'loading');
   try {
     for (const studio of STUDIOS) {
-      await generateBagsDeck(dayData, dayName, studio, state.date, state.assets);
-      await generateFloorDeck(dayData, dayName, studio, state.date, state.assets);
+      await generateBagsDeck(dayData, dayName, studio, dayData.date, state.assets);
+      await generateFloorDeck(dayData, dayName, studio, dayData.date, state.assets);
     }
-    setStatus(`✓ ${state.date} ${dayName} — 6 files downloaded (all studios)`, 'success');
+    setStatus(`✓ ${dayData.date || 'DATE'} ${dayName} — 6 files downloaded (all studios)`, 'success');
   } catch (e) {
     setStatus('✗ Error: ' + e.message, 'error');
     console.error(e);
@@ -323,8 +323,8 @@ window.genWeek = async () => {
       const dayData = state.week[i];
       const dayName = DAYS[i];
       for (const studio of STUDIOS) {
-        await generateBagsDeck(dayData, dayName, studio, state.date, state.assets);
-        await generateFloorDeck(dayData, dayName, studio, state.date, state.assets);
+        await generateBagsDeck(dayData, dayName, studio, dayData.date, state.assets);
+        await generateFloorDeck(dayData, dayName, studio, dayData.date, state.assets);
       }
     }
     setStatus(`✓ Full week — 42 files downloaded (all studios)`, 'success');

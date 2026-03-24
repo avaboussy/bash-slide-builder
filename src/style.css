@@ -164,6 +164,23 @@ header {
 .day-btn .dn { flex: 1; }
 .day-btn .dt { font-size: 9px; color: var(--text-muted); }
 
+/* Date input in editor day header */
+.day-date-input {
+  width: 62px;
+  background: var(--gray);
+  border: 1px solid var(--gray3);
+  border-radius: 5px;
+  color: var(--yellow);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 4px 8px;
+  text-align: center;
+}
+.day-date-input:focus { outline: none; border-color: var(--yellow); }
+.day-date-input::placeholder { color: var(--gray3); font-size: 14px; }
+
 .divider { height: 1px; background: var(--gray2); margin: 10px 12px; }
 
 /* ── EDITOR ───────────────────────────────────────────── */

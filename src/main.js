@@ -5,10 +5,6 @@ document.getElementById('app').innerHTML = `
   <header>
     <div class="logo">BASH<span> GEN</span></div>
     <div class="global-settings">
-      <div class="setting-group">
-        <span class="setting-label">Date</span>
-        <input type="text" id="dateInput" placeholder="3.22" oninput="setDateVal(this.value)">
-      </div>
       <div class="asset-status" id="assetDots" title="Asset load status — hover each dot"></div>
     </div>
   </header>
