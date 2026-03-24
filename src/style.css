@@ -177,6 +177,8 @@ header {
   letter-spacing: 2px;
   padding: 2px 6px;
   text-align: center;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 .day-date-input:focus { outline: none; border-color: var(--yellow); }
 .day-date-input::placeholder { color: var(--gray3); font-size: 16px; font-weight: 700; }
